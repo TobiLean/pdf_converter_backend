@@ -5,29 +5,30 @@ const bodyParser = require("body-parser");
 const {spawn} = require("child_process");
 const {diskStorage} = require("multer");
 const multer = require("multer");
+const cors = require("cors");
+const {writeFile} = require("node:fs");
 
-//Using body parser for json
 app.use(bodyParser.urlencoded({extended: true}));
-
-// setting up multer
-const upload = multer({dest: "uploads/"});
+app.use(bodyParser.json());
+app.use(express.json());
 
 app.use(express.static("../public"));
+
+const upload = multer({dest: './uploads'})
 
 app.get("/", (req, res) => {
   res.send()
 })
 
-app.post("/upload", upload.single("file"), (req, res) => {
-  let uploaded_file = req.file;
+app.post("/process", cors(), upload.single('uploaded_file'), (req, res) => {
+  let filePath = req.body.path;
 
-  if (!uploaded_file) {
+  if (!filePath) {
     return res.status(400).send("No file uploaded");
   }
 
-  console.log("Stored path:", uploaded_file.path);
-  const pythonProcess = slpawn("py", ["./c.py", `${uploaded_file.path}`], `${e}`);
-  //console.log(pythonProcess.stdout);
+  console.log("Stored path:", filePath);
+  const pythonProcess = spawn("py", ["./c.py", `${filePath}`]);
 
   pythonProcess.stdout.on("data", (data) => {
     console.log(data.toString());
@@ -43,5 +44,22 @@ app.post("/upload", upload.single("file"), (req, res) => {
 
   res.send("File uploaded successfully");
 });
+
+app.post("/upload", cors(), upload.array('uploaded_file', 10), (req, res) => {
+  let fileData = req.files;
+  console.log("Server received file?");
+  try {
+
+    if(!fileData || fileData.length === 0) {
+      return res.status(400).send("No file uploaded");
+    }
+
+    console.log("Body ", fileData);
+    res.status(200).send(("File uploaded successfully to the server").toString());
+  } catch (e) {
+    console.log(e);
+    res.status(500).send("Server failed to upload file");
+  }
+})
 
 app.listen(port, () => console.log(`App listening on port ${port}`));
